@@ -50,18 +50,48 @@ type Tree struct {
 	ResolveInternal bool
 	ResolveTest     bool
 	MaxDepth        int
-	MatcherReg      string
-	matched         *regexp.Regexp
+	MapLevel        int    // 扁平化展示层级
+	ShowPkg         string // 展示哪个包的依赖
+	showFiltered    func(pkgName string) bool
+
+	MatcherReg string
+	matched    *regexp.Regexp
 
 	Importer Importer
 
-	importCache map[string]struct{}
+	importCache    map[string]struct{}
+	importPkgCache map[string]*build.Package
+}
+
+func (t *Tree) ShowFilter(pkgName string) bool {
+	if t.showFiltered != nil {
+		return t.showFiltered(pkgName)
+	}
+	return false
+}
+
+func (t *Tree) hasSeenPkg(name string) (*build.Package, bool) {
+	pkg, exist := t.importPkgCache[name]
+	return pkg, exist
+}
+
+func (t *Tree) cachePkg(name string, pkg *build.Package) {
+	t.importPkgCache[name] = pkg
 }
 
 func (t *Tree) Init() {
 	if len(t.MatcherReg) > 0 {
 		t.matched = regexp.MustCompile(t.MatcherReg)
 	}
+	if len(t.ShowPkg) > 0 {
+		t.showFiltered = func(pkgName string) bool {
+			if pkgName != t.ShowPkg {
+				return true
+			}
+			return false
+		}
+	}
+	t.importPkgCache = make(map[string]*build.Package)
 }
 
 // Resolve recursively finds all dependencies for the root Pkg name provided,

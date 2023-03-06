@@ -8,6 +8,23 @@ import (
 	"strings"
 )
 
+type PkgList []Pkg
+
+func (p *PkgList) Len() int {
+	if p == nil {
+		return 0
+	}
+	return len(*p)
+}
+
+func (p *PkgList) Less(i, j int) bool {
+	return (*p)[i].String() > (*p)[j].String()
+}
+
+func (p *PkgList) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+}
+
 // Pkg represents a Go source package, and its dependencies.
 type Pkg struct {
 	Name   string `json:"name"`
@@ -41,16 +58,25 @@ func (p *Pkg) Resolve(i Importer) {
 
 	// Stop resolving imports if we've reached max depth or found a duplicate.
 	var importMode build.ImportMode
-	if p.Tree.hasSeenImport(name) || p.Tree.isAtMaxDepth(p) {
+
+	p.Tree.hasSeenImport(name)
+
+	if p.Tree.isAtMaxDepth(p) {
 		importMode = build.FindOnly
 	}
 
-	pkg, err := i.Import(name, p.SrcDir, importMode)
-	if err != nil {
-		// TODO: Check the error type?
-		p.Resolved = false
-		return
+	pkg, exist := p.Tree.hasSeenPkg(name)
+	if !exist {
+		var err error
+		pkg, err = i.Import(name, p.SrcDir, importMode)
+		if err != nil {
+			// TODO: Check the error type?
+			p.Resolved = false
+			return
+		}
+		p.Tree.cachePkg(name, pkg)
 	}
+
 	p.Raw = pkg
 
 	p.filteredImportPath(pkg)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/KyleBanks/depth"
@@ -46,6 +47,9 @@ func parse(args []string) (*depth.Tree, []string) {
 	f.BoolVar(&outputJSON, "json", false, "If set, outputs the depencies in JSON format.")
 	f.StringVar(&explainPkg, "explain", "", "If set, show which packages import the specified target")
 	f.StringVar(&t.MatcherReg, "matcher", "", "If set, this matching rule is used to match the package name to be resolved, i.e github.com/KyleBanks/depth*, the package name with prefix github.com/KyleBanks/depth will be matched")
+	f.IntVar(&t.MapLevel, "maplevel", 0, "Sets the display level.")
+	f.StringVar(&t.ShowPkg, "showpkg", "", "")
+
 	f.Parse(args)
 
 	t.Init()
@@ -73,6 +77,12 @@ func handlePkgs(t *depth.Tree, pkgs []string, outputJSON bool, explainPkg string
 			writeExplain(os.Stdout, *t.Root, []string{}, explainPkg)
 			continue
 		}
+
+		if t.MapLevel >= 0 {
+			mapingLevel(t.Root, 0, t.MapLevel)
+		}
+		listPkg := depth.PkgList(t.Root.Deps)
+		sort.Sort(&listPkg)
 
 		writePkg(os.Stdout, *t.Root)
 		writePkgSummary(os.Stdout, *t.Root)
@@ -162,5 +172,33 @@ func writeExplain(w io.Writer, pkg depth.Pkg, stack []string, explain string) {
 	}
 	for _, p := range pkg.Deps {
 		writeExplain(w, p, stack, explain)
+	}
+}
+
+func mapingLevel(pkg *depth.Pkg, level int, mapLevel int) {
+	if level == mapLevel {
+		depsMap := make(map[string]depth.Pkg)
+		for i := 0; i < len(pkg.Deps); i++ {
+			mappingLevelRec(&pkg.Deps[i], depsMap)
+			depsMap[pkg.Deps[i].String()] = pkg.Deps[i]
+		}
+		pkg.Deps = make([]depth.Pkg, 0, len(depsMap))
+		for _, mapDep := range depsMap {
+			mapDep.Deps = nil
+			pkg.Deps = append(pkg.Deps, mapDep)
+		}
+		sortList := depth.PkgList(pkg.Deps)
+		sort.Sort(&sortList)
+		return
+	}
+	for i := 0; i < len(pkg.Deps); i++ {
+		mapingLevel(&pkg.Deps[i], level+1, mapLevel)
+	}
+}
+
+func mappingLevelRec(pkg *depth.Pkg, depsMap map[string]depth.Pkg) {
+	for _, dep := range pkg.Deps {
+		mappingLevelRec(&dep, depsMap)
+		depsMap[dep.String()] = dep
 	}
 }

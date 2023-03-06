@@ -182,3 +182,13 @@ func Example_handlePkgsExplain() {
 	// github.com/KyleBanks/depth/cmd/depth -> strings
 	// github.com/KyleBanks/depth/cmd/depth -> github.com/KyleBanks/depth -> strings
 }
+
+func TestExample_handlePkgsDepth1(t1 *testing.T) {
+	var t depth.Tree
+	t.ResolveInternal = true
+	t.MapLevel = 1
+	t.MatcherReg = ""
+	t.Init()
+
+	handlePkgs(&t, []string{"github.com/KyleBanks/depth/cmd/depth"}, false, "")
+}
