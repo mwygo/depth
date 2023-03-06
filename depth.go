@@ -30,6 +30,7 @@ import (
 	"errors"
 	"go/build"
 	"os"
+	"regexp"
 )
 
 // ErrRootPkgNotResolved is returned when the root Pkg of the Tree cannot be resolved,
@@ -49,10 +50,18 @@ type Tree struct {
 	ResolveInternal bool
 	ResolveTest     bool
 	MaxDepth        int
+	MatcherReg      string
+	matched         *regexp.Regexp
 
 	Importer Importer
 
 	importCache map[string]struct{}
+}
+
+func (t *Tree) Init() {
+	if len(t.MatcherReg) > 0 {
+		t.matched = regexp.MustCompile(t.MatcherReg)
+	}
 }
 
 // Resolve recursively finds all dependencies for the root Pkg name provided,
@@ -100,6 +109,16 @@ func (t *Tree) shouldResolveInternal(parent *Pkg) bool {
 	}
 
 	return parent == t.Root
+}
+
+func (t *Tree) shouldFiltered(name string) bool {
+	if t.matched != nil {
+		if t.matched.Match([]byte(name)) {
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 // isAtMaxDepth returns true when the depth of the Pkg provided is at or beyond the maximum

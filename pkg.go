@@ -35,6 +35,10 @@ func (p *Pkg) Resolve(i Importer) {
 		return
 	}
 
+	if p.Tree.shouldFiltered(name) {
+		return
+	}
+
 	// Stop resolving imports if we've reached max depth or found a duplicate.
 	var importMode build.ImportMode
 	if p.Tree.hasSeenImport(name) || p.Tree.isAtMaxDepth(p) {
@@ -48,6 +52,8 @@ func (p *Pkg) Resolve(i Importer) {
 		return
 	}
 	p.Raw = pkg
+
+	p.filteredImportPath(pkg)
 
 	// Update the name with the fully qualified import path.
 	p.Name = pkg.ImportPath
@@ -67,6 +73,17 @@ func (p *Pkg) Resolve(i Importer) {
 	if p.Tree.ResolveTest {
 		p.setDeps(i, append(pkg.TestImports, pkg.XTestImports...), pkg.Dir, unique, true)
 	}
+}
+
+func (p *Pkg) filteredImportPath(pkg *build.Package) {
+	var filteredPaths []string
+	for _, importPath := range pkg.Imports {
+		if p.Tree.shouldFiltered(importPath) {
+			continue
+		}
+		filteredPaths = append(filteredPaths, importPath)
+	}
+	pkg.Imports = filteredPaths
 }
 
 // setDeps takes a slice of import paths and the source directory they are relative to,

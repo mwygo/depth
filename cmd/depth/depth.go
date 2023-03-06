@@ -45,7 +45,10 @@ func parse(args []string) (*depth.Tree, []string) {
 	f.IntVar(&t.MaxDepth, "max", 0, "Sets the maximum depth of dependencies to resolve.")
 	f.BoolVar(&outputJSON, "json", false, "If set, outputs the depencies in JSON format.")
 	f.StringVar(&explainPkg, "explain", "", "If set, show which packages import the specified target")
+	f.StringVar(&t.MatcherReg, "matcher", "", "If set, this matching rule is used to match the package name to be resolved, i.e github.com/KyleBanks/depth*, the package name with prefix github.com/KyleBanks/depth will be matched")
 	f.Parse(args)
+
+	t.Init()
 
 	return &t, f.Args()
 }
